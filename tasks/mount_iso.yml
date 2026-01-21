@@ -1,0 +1,39 @@
+---
+# ISO Mounting Tasks via iDRAC Redfish
+
+- name: ISO Mounting - Start
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "Starting ISO Mounting via iDRAC"
+      - "Target Servers: {{ idrac_servers | length }}"
+      - "ISO URL: {{ iso_http_url }}"
+      - "=========================================="
+
+- name: Validate ISO URL is accessible
+  ansible.builtin.uri:
+    url: "{{ iso_http_url }}"
+    method: HEAD
+    status_code: 200
+    timeout: 30
+  register: _iso_url_validation
+  retries: 3
+  delay: 5
+  until: _iso_url_validation.status == 200
+
+- name: Process each iDRAC server
+  ansible.builtin.include_tasks: mount_iso_single_server.yml
+  loop: "{{ idrac_servers }}"
+  loop_control:
+    loop_var: server
+    label: "{{ server.name }}"
+
+- name: ISO mounting complete
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "ISO Mounting Complete"
+      - "=========================================="
+      - "Servers configured: {{ idrac_servers | length }}"
+      - "Next: Servers will boot from mounted ISO"
+      - "=========================================="

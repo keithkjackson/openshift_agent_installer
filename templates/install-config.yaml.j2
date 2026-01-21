@@ -1,0 +1,112 @@
+apiVersion: v1
+baseDomain: {{ base_domain }}
+compute:
+- architecture: amd64
+  hyperthreading: Enabled
+  name: worker
+  replicas: {{ compute_replicas }}
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  replicas: {{ control_plane_replicas }}
+metadata:
+  name: {{ cluster_name }}
+networking:
+{% if cluster_networks | length > 0 %}
+  clusterNetwork:
+{% for network in cluster_networks %}
+  - cidr: {{ network.cidr }}
+    hostPrefix: {{ network.hostPrefix }}
+{% endfor %}
+{% else %}
+  clusterNetwork:
+  - cidr: {{ cluster_network_cidr }}
+    hostPrefix: {{ cluster_network_host_prefix }}
+{% endif %}
+{% if machine_networks | length > 0 %}
+  machineNetwork:
+{% for network in machine_networks %}
+  - cidr: {{ network.cidr }}
+{% endfor %}
+{% else %}
+  machineNetwork:
+  - cidr: {{ machine_network_cidr }}
+{% endif %}
+  networkType: {{ networking_type }}
+{% if service_networks | length > 0 %}
+  serviceNetwork:
+{% for network in service_networks %}
+  - {{ network }}
+{% endfor %}
+{% else %}
+  serviceNetwork:
+  - {{ service_network }}
+{% endif %}
+platform:
+{% if platform_type == 'baremetal' %}
+  baremetal:
+{% if api_vips | length > 0 %}
+    apiVIPs:
+{% for vip in api_vips %}
+    - {{ vip }}
+{% endfor %}
+{% elif api_vip | length > 0 %}
+    apiVIPs:
+    - {{ api_vip }}
+{% endif %}
+{% if ingress_vips | length > 0 %}
+    ingressVIPs:
+{% for vip in ingress_vips %}
+    - {{ vip }}
+{% endfor %}
+{% elif ingress_vip | length > 0 %}
+    ingressVIPs:
+    - {{ ingress_vip }}
+{% endif %}
+{% if provisioning_network is defined and provisioning_network | length > 0 %}
+    provisioningNetwork: {{ provisioning_network }}
+{% if provisioning_network in ['Managed', 'Unmanaged'] %}
+{% if provisioning_network_interface | length > 0 %}
+    provisioningNetworkInterface: {{ provisioning_network_interface }}
+{% endif %}
+{% if provisioning_network == 'Managed' and provisioning_network_cidr | length > 0 %}
+    provisioningNetworkCIDR: {{ provisioning_network_cidr }}
+{% endif %}
+{% endif %}
+{% endif %}
+{% elif platform_type == 'vsphere' %}
+  vsphere:
+    apiVIPs:
+    - {{ api_vip }}
+    ingressVIPs:
+    - {{ ingress_vip }}
+    vCenter: {{ vcenter_server | default('') }}
+    username: {{ vcenter_username | default('') }}
+    password: {{ vcenter_password | default('') }}
+    datacenter: {{ vcenter_datacenter | default('') }}
+    defaultDatastore: {{ vcenter_datastore | default('') }}
+    cluster: {{ vcenter_cluster | default('') }}
+    network: {{ vcenter_network | default('') }}
+{% elif platform_type == 'none' %}
+  none: {}
+{% else %}
+  {{ platform_type }}: {}
+{% endif %}
+fips: {{ fips_enabled | lower }}
+pullSecret: '{{ pull_secret | to_json }}'
+sshKey: '{{ ssh_public_key }}'
+{% if image_content_sources | length > 0 %}
+imageContentSources:
+{% for source in image_content_sources %}
+- mirrors:
+{% for mirror in source.mirrors %}
+  - {{ mirror }}
+{% endfor %}
+  source: {{ source.source }}
+{% endfor %}
+{% endif %}
+{% if additional_trust_bundle | length > 0 %}
+additionalTrustBundle: |
+{{ additional_trust_bundle | indent(2, first=True) }}
+{% endif %}

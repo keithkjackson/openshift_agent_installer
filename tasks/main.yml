@@ -1,0 +1,81 @@
+---
+# OpenShift Agent-Based Installer Role - Main Tasks
+
+- name: Display role banner
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "OpenShift Agent-Based Installer"
+      - "Version: {{ ocp_version }}"
+      - "Cluster: {{ cluster_name }}.{{ base_domain }}"
+      - "=========================================="
+
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - cluster_name is defined and cluster_name | length > 0
+      - base_domain is defined and base_domain | length > 0
+      - pull_secret is defined and pull_secret | length > 0
+      - ssh_public_key is defined and ssh_public_key | length > 0
+    fail_msg: "Required variables are missing. Please check cluster_name, base_domain, pull_secret, and ssh_public_key."
+    success_msg: "Required variables validation passed."
+
+- name: Validate ISO generation requirements
+  ansible.builtin.assert:
+    that:
+      - rendezvous_ip is defined and rendezvous_ip | length > 0
+      - agent_hosts is defined and agent_hosts | length > 0
+    fail_msg: "ISO generation requires rendezvous_ip and agent_hosts to be defined."
+    success_msg: "ISO generation requirements validated."
+  when: iso_generation_enabled | bool
+
+- name: Validate ISO mounting requirements
+  ansible.builtin.assert:
+    that:
+      - iso_http_url is defined and iso_http_url | length > 0
+      - idrac_servers is defined and idrac_servers | length > 0
+      - idrac_password is defined and idrac_password | length > 0
+    fail_msg: "ISO mounting requires iso_http_url, idrac_servers, and idrac_password to be defined."
+    success_msg: "ISO mounting requirements validated."
+  when: iso_mounting_enabled | bool
+
+- name: Check prerequisites
+  ansible.builtin.include_tasks: prerequisites.yml
+  tags:
+    - prerequisites
+    - always
+
+- name: Generate OpenShift ISO
+  ansible.builtin.include_tasks: generate_iso.yml
+  when: iso_generation_enabled | bool
+  tags:
+    - generate_iso
+    - iso
+
+- name: Mount ISO to servers via iDRAC
+  ansible.builtin.include_tasks: mount_iso.yml
+  when: iso_mounting_enabled | bool
+  tags:
+    - mount_iso
+    - idrac
+
+- name: Display completion summary
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "OpenShift Agent-Based Installer - Complete"
+      - "=========================================="
+      - "ISO Generation: {{ 'Completed' if iso_generation_enabled else 'Skipped' }}"
+      - "ISO Location: {{ _iso_full_path if iso_generation_enabled else 'N/A' }}"
+      - "ISO Mounting: {{ 'Completed' if iso_mounting_enabled else 'Skipped' }}"
+      - "Servers Configured: {{ idrac_servers | length if iso_mounting_enabled else 0 }}"
+      - ""
+      - "Next Steps:"
+      - "1. Verify servers are booting from the mounted ISO"
+      - "2. Monitor installation progress:"
+      - "   openshift-install agent wait-for bootstrap-complete --dir={{ work_dir }}"
+      - "3. Wait for installation to complete:"
+      - "   openshift-install agent wait-for install-complete --dir={{ work_dir }}"
+      - "4. Access your cluster:"
+      - "   export KUBECONFIG={{ work_dir }}/auth/kubeconfig"
+      - "=========================================="

@@ -1,0 +1,260 @@
+---
+# Prerequisites validation and setup
+
+- name: Check if running on localhost
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'localhost' or inventory_hostname == '127.0.0.1'
+    fail_msg: "This role must be run on localhost"
+    success_msg: "Running on localhost - OK"
+
+- name: Gather facts if not already gathered
+  ansible.builtin.setup:
+  when: ansible_facts.keys() | list | length == 0
+
+- name: Check OpenShift installer binary exists
+  ansible.builtin.stat:
+    path: "{{ ocp_installer_path }}"
+  register: _installer_binary
+  when: iso_generation_enabled | bool
+
+- name: Fail if installer binary not found
+  ansible.builtin.fail:
+    msg: >
+      OpenShift installer binary not found at {{ ocp_installer_path }}.
+      Please download it from https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
+  when:
+    - iso_generation_enabled | bool
+    - not _installer_binary.stat.exists
+
+- name: Verify installer binary is executable
+  ansible.builtin.file:
+    path: "{{ ocp_installer_path }}"
+    mode: '0755'
+  when:
+    - iso_generation_enabled | bool
+    - _installer_binary.stat.exists
+
+- name: Get OpenShift installer version
+  ansible.builtin.command:
+    cmd: "{{ ocp_installer_path }} version"
+  register: _installer_version
+  changed_when: false
+  when: iso_generation_enabled | bool
+
+- name: Display installer version
+  ansible.builtin.debug:
+    msg: "{{ _installer_version.stdout_lines }}"
+  when:
+    - iso_generation_enabled | bool
+    - _installer_version is defined
+
+- name: Check Python version
+  ansible.builtin.command:
+    cmd: python3 --version
+  register: _python_version
+  changed_when: false
+  failed_when: false
+
+- name: Verify Python 3 is available
+  ansible.builtin.assert:
+    that:
+      - _python_version.rc == 0
+      - _python_version.stdout is search('Python 3\.[8-9]|Python 3\.1[0-9]')
+    fail_msg: "Python 3.8 or higher is required"
+    success_msg: "Python version check passed: {{ _python_version.stdout }}"
+
+- name: Check if required Python modules are installed
+  ansible.builtin.command:
+    cmd: "python3 -c 'import {{ item }}'"
+  loop:
+    - requests
+    - yaml
+  register: _python_modules
+  changed_when: false
+  failed_when: false
+
+- name: Display warning if Python modules are missing
+  ansible.builtin.debug:
+    msg: >
+      Warning: Python module '{{ item.item }}' may not be installed.
+      Install it with: pip3 install {{ item.item }}
+  loop: "{{ _python_modules.results }}"
+  when: item.rc != 0
+
+- name: Verify Ansible version
+  ansible.builtin.assert:
+    that:
+      - ansible_version.full is version('2.9', '>=')
+    fail_msg: "Ansible 2.9 or higher is required. Current version: {{ ansible_version.full }}"
+    success_msg: "Ansible version check passed: {{ ansible_version.full }}"
+
+- name: Check if community.general collection is installed
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection list community.general
+  register: _collection_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if community.general collection is not installed
+  ansible.builtin.fail:
+    msg: >
+      The community.general collection is required but not installed.
+      Install it with: ansible-galaxy collection install community.general
+  when:
+    - iso_mounting_enabled | bool
+    - _collection_check.rc != 0
+
+- name: Validate pull secret format
+  ansible.builtin.set_fact:
+    _pull_secret_valid: "{{ pull_secret | from_json }}"
+  when: iso_generation_enabled | bool
+  ignore_errors: true
+  no_log: true
+
+- name: Fail if pull secret is invalid JSON
+  ansible.builtin.fail:
+    msg: "pull_secret must be valid JSON format"
+  when:
+    - iso_generation_enabled | bool
+    - _pull_secret_valid is not defined
+
+- name: Validate SSH public key format
+  ansible.builtin.assert:
+    that:
+      - ssh_public_key is search('^ssh-rsa |^ssh-ed25519 |^ecdsa-sha2-')
+    fail_msg: "ssh_public_key does not appear to be a valid SSH public key"
+    success_msg: "SSH public key format validated"
+  when: iso_generation_enabled | bool
+
+- name: Check disk space for ISO generation
+  ansible.builtin.shell: |
+    df -BG {{ work_dir | dirname }} | awk 'NR==2 {print $4}' | sed 's/G//'
+  register: _disk_space
+  changed_when: false
+  when: iso_generation_enabled | bool
+
+- name: Warn if disk space is low
+  ansible.builtin.debug:
+    msg: >
+      Warning: Available disk space is {{ _disk_space.stdout }}GB.
+      At least 10GB is recommended for ISO generation.
+  when:
+    - iso_generation_enabled | bool
+    - _disk_space.stdout | int < 10
+
+- name: Validate iDRAC server configuration
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.idrac_ip is defined
+      - item.idrac_ip | ansible.utils.ipaddr
+    fail_msg: "Invalid iDRAC server configuration for {{ item.name | default('unknown') }}"
+    success_msg: "iDRAC server configuration validated"
+  loop: "{{ idrac_servers }}"
+  when: iso_mounting_enabled | bool
+
+- name: Test iDRAC connectivity
+  ansible.builtin.uri:
+    url: "https://{{ item.idrac_ip }}/redfish/v1/"
+    method: GET
+    user: "{{ item.idrac_username | default(idrac_username) }}"
+    password: "{{ item.idrac_password | default(idrac_password) }}"
+    force_basic_auth: true
+    validate_certs: "{{ idrac_validate_certs }}"
+    status_code: [200, 401]  # 401 is OK, means Redfish is responding
+    timeout: 10
+  loop: "{{ idrac_servers }}"
+  register: _idrac_connectivity
+  failed_when: false
+  when: iso_mounting_enabled | bool
+  no_log: true
+
+- name: Display iDRAC connectivity results
+  ansible.builtin.debug:
+    msg: >
+      iDRAC {{ item.item.name }} ({{ item.item.idrac_ip }}):
+      {{ 'Reachable' if item.status in [200, 401] else 'Unreachable - ' + (item.msg | default('Unknown error')) }}
+  loop: "{{ _idrac_connectivity.results }}"
+  when:
+    - iso_mounting_enabled | bool
+    - _idrac_connectivity is defined
+
+- name: Warn about unreachable iDRACs
+  ansible.builtin.debug:
+    msg: >
+      WARNING: iDRAC {{ item.item.name }} at {{ item.item.idrac_ip }} is not reachable.
+      Please verify network connectivity and iDRAC configuration.
+  loop: "{{ _idrac_connectivity.results }}"
+  when:
+    - iso_mounting_enabled | bool
+    - _idrac_connectivity is defined
+    - item.status not in [200, 401]
+
+- name: Validate ISO HTTP URL accessibility
+  ansible.builtin.uri:
+    url: "{{ iso_http_url }}"
+    method: HEAD
+    status_code: [200, 404]  # 404 is OK if ISO doesn't exist yet
+    timeout: 10
+  register: _iso_url_check
+  failed_when: false
+  when:
+    - iso_mounting_enabled | bool
+    - iso_http_url | length > 0
+
+- name: Display ISO URL accessibility
+  ansible.builtin.debug:
+    msg: >
+      ISO HTTP URL {{ iso_http_url }}:
+      {{ 'Accessible' if _iso_url_check.status == 200 else 'Not yet available (will be after generation)' if _iso_url_check.status == 404 else 'Unreachable' }}
+  when:
+    - iso_mounting_enabled | bool
+    - _iso_url_check is defined
+
+- name: Prerequisites check complete
+  ansible.builtin.debug:
+    msg: "All prerequisites validated successfully"
+
+- name: Validate agent host configurations
+  ansible.builtin.assert:
+    that:
+      - item.hostname is defined
+      - item.role is defined
+      - item.role in ['master', 'worker']
+      - item.interfaces is defined
+      - item.interfaces | length > 0
+    fail_msg: "Invalid agent host configuration for {{ item.hostname | default('unknown') }}"
+    success_msg: "Agent host configuration validated for {{ item.hostname }}"
+  loop: "{{ agent_hosts }}"
+  when:
+    - iso_generation_enabled | bool
+    - agent_hosts | length > 0
+  loop_control:
+    label: "{{ item.hostname | default('unknown') }}"
+
+- name: Validate agent host MAC addresses
+  ansible.builtin.assert:
+    that:
+      - item.1.macAddress is defined
+      - item.1.macAddress | length > 0
+      - item.1.macAddress is match('^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$')
+    fail_msg: "Invalid MAC address for {{ item.0.hostname }}: {{ item.1.macAddress | default('undefined') }}"
+    success_msg: "MAC address validated for {{ item.0.hostname }}"
+  loop: "{{ agent_hosts | subelements('interfaces') }}"
+  when:
+    - iso_generation_enabled | bool
+    - agent_hosts | length > 0
+  loop_control:
+    label: "{{ item.0.hostname }}: {{ item.1.name }}"
+
+- name: Display agent hosts summary
+  ansible.builtin.debug:
+    msg:
+      - "Agent Hosts Configuration:"
+      - "  Total hosts: {{ agent_hosts | length }}"
+      - "  Master nodes: {{ agent_hosts | selectattr('role', 'equalto', 'master') | list | length }}"
+      - "  Worker nodes: {{ agent_hosts | selectattr('role', 'equalto', 'worker') | list | length }}"
+  when:
+    - iso_generation_enabled | bool
+    - agent_hosts | length > 0

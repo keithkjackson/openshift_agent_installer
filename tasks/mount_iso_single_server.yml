@@ -1,0 +1,157 @@
+---
+# Mount ISO to a single server via iDRAC
+
+- name: Set server-specific variables
+  ansible.builtin.set_fact:
+    _current_idrac_ip: "{{ server.idrac_ip }}"
+    _current_idrac_user: "{{ server.idrac_username | default(idrac_username) }}"
+    _current_idrac_pass: "{{ server.idrac_password | default(idrac_password) }}"
+    _current_server_name: "{{ server.name }}"
+
+- name: "{{ _current_server_name }} - Get Redfish system information"
+  community.general.redfish_info:
+    category: Systems
+    command: GetSystemInventory
+    baseuri: "{{ _current_idrac_ip }}"
+    username: "{{ _current_idrac_user }}"
+    password: "{{ _current_idrac_pass }}"
+    timeout: "{{ mount_timeout }}"
+  register: _system_info
+  no_log: true
+
+- name: "{{ _current_server_name }} - Display system information"
+  ansible.builtin.debug:
+    msg:
+      - "Server: {{ _current_server_name }}"
+      - "Model: {{ _system_info.redfish_facts.system.entries[0].Model | default('Unknown') }}"
+      - "Serial: {{ _system_info.redfish_facts.system.entries[0].SerialNumber | default('Unknown') }}"
+      - "Power State: {{ _system_info.redfish_facts.system.entries[0].PowerState | default('Unknown') }}"
+
+- name: "{{ _current_server_name }} - Eject any existing virtual media"
+  community.general.redfish_command:
+    category: Manager
+    command: VirtualMediaEject
+    baseuri: "{{ _current_idrac_ip }}"
+    username: "{{ _current_idrac_user }}"
+    password: "{{ _current_idrac_pass }}"
+    virtual_media:
+      image_url: ""
+    resource_id: "iDRAC.Embedded.1"
+    timeout: "{{ mount_timeout }}"
+  register: _eject_result
+  failed_when: false
+  no_log: true
+
+- name: "{{ _current_server_name }} - Wait after ejecting media"
+  ansible.builtin.pause:
+    seconds: 5
+
+- name: "{{ _current_server_name }} - Insert virtual media (ISO)"
+  community.general.redfish_command:
+    category: Manager
+    command: VirtualMediaInsert
+    baseuri: "{{ _current_idrac_ip }}"
+    username: "{{ _current_idrac_user }}"
+    password: "{{ _current_idrac_pass }}"
+    virtual_media:
+      image_url: "{{ iso_http_url }}"
+      media_types:
+        - CD
+        - DVD
+      inserted: true
+      write_protected: true
+    resource_id: "iDRAC.Embedded.1"
+    timeout: "{{ mount_timeout }}"
+  register: _insert_result
+  retries: "{{ mount_retries }}"
+  delay: "{{ mount_retry_delay }}"
+  until: _insert_result is succeeded
+  no_log: true
+
+- name: "{{ _current_server_name }} - Verify virtual media is inserted"
+  community.general.redfish_info:
+    category: Manager
+    command: GetVirtualMedia
+    baseuri: "{{ _current_idrac_ip }}"
+    username: "{{ _current_idrac_user }}"
+    password: "{{ _current_idrac_pass }}"
+    timeout: "{{ mount_timeout }}"
+  register: _verify_media
+  retries: 3
+  delay: 5
+  until: _verify_media is succeeded
+  no_log: true
+
+- name: "{{ _current_server_name }} - Display virtual media status"
+  ansible.builtin.debug:
+    msg:
+      - "Virtual Media Status:"
+      - "  Inserted: {{ _verify_media.redfish_facts.virtual_media.entries[0].Inserted | default(false) }}"
+      - "  Image: {{ _verify_media.redfish_facts.virtual_media.entries[0].Image | default('None') }}"
+      - "  Connected: {{ _verify_media.redfish_facts.virtual_media.entries[0].ConnectedVia | default('NotConnected') }}"
+
+- name: "{{ _current_server_name }} - Set boot from virtual CD (one time)"
+  community.general.redfish_command:
+    category: Systems
+    command: SetOneTimeBoot
+    bootdevice: Cd
+    baseuri: "{{ _current_idrac_ip }}"
+    username: "{{ _current_idrac_user }}"
+    password: "{{ _current_idrac_pass }}"
+    timeout: "{{ mount_timeout }}"
+  when: boot_from_iso | bool and boot_once | bool
+  register: _boot_once_result
+  no_log: true
+
+- name: "{{ _current_server_name }} - Set boot from virtual CD (persistent)"
+  community.general.redfish_command:
+    category: Systems
+    command: SetBootOrder
+    baseuri: "{{ _current_idrac_ip }}"
+    username: "{{ _current_idrac_user }}"
+    password: "{{ _current_idrac_pass }}"
+    boot_order:
+      - Cd
+      - Hdd
+    timeout: "{{ mount_timeout }}"
+  when: boot_from_iso | bool and not boot_once | bool
+  register: _boot_persistent_result
+  failed_when: false  # Some systems may not support this
+  no_log: true
+
+- name: "{{ _current_server_name }} - Power cycle server"
+  community.general.redfish_command:
+    category: Systems
+    command: PowerReboot
+    baseuri: "{{ _current_idrac_ip }}"
+    username: "{{ _current_idrac_user }}"
+    password: "{{ _current_idrac_pass }}"
+    timeout: "{{ mount_timeout }}"
+  when: power_cycle_servers | bool
+  register: _power_result
+  no_log: true
+
+- name: "{{ _current_server_name }} - Set power state"
+  community.general.redfish_command:
+    category: Systems
+    command: "Power{{ power_state_after_mount }}"
+    baseuri: "{{ _current_idrac_ip }}"
+    username: "{{ _current_idrac_user }}"
+    password: "{{ _current_idrac_pass }}"
+    timeout: "{{ mount_timeout }}"
+  when:
+    - not power_cycle_servers | bool
+    - power_state_after_mount != "On" or _system_info.redfish_facts.system.entries[0].PowerState != "On"
+  register: _power_state_result
+  no_log: true
+
+- name: "{{ _current_server_name }} - ISO mounting complete"
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "Server: {{ _current_server_name }}"
+      - "Status: ISO mounted successfully"
+      - "ISO URL: {{ iso_http_url }}"
+      - "Boot Device: {{ 'Virtual CD' if boot_from_iso else 'Not changed' }}"
+      - "Power Action: {{ 'Rebooted' if power_cycle_servers else power_state_after_mount if power_state_after_mount else 'None' }}"
+      - "=========================================="

@@ -1,0 +1,78 @@
+apiVersion: v1alpha1
+kind: AgentConfig
+metadata:
+  name: {{ cluster_name }}
+rendezvousIP: {{ rendezvous_ip }}
+{% if agent_hosts | length > 0 %}
+hosts:
+{% for host in agent_hosts %}
+  - hostname: {{ host.hostname }}
+    role: {{ host.role }}
+{% if host.rootDeviceHints is defined %}
+    rootDeviceHints:
+{% for key, value in host.rootDeviceHints.items() %}
+      {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+    interfaces:
+{% for interface in host.interfaces %}
+      - name: {{ interface.name }}
+        macAddress: {{ interface.macAddress }}
+{% endfor %}
+{% if host.networkConfig is defined %}
+    networkConfig:
+{% if host.networkConfig.interfaces is defined %}
+      interfaces:
+{% for interface in host.networkConfig.interfaces %}
+        - name: {{ interface.name }}
+          type: {{ interface.type }}
+          state: {{ interface.state }}
+{% if interface.ipv4 is defined %}
+          ipv4:
+            enabled: {{ interface.ipv4.enabled | lower }}
+{% if interface.ipv4.address is defined %}
+            address:
+{% for addr in interface.ipv4.address %}
+              - ip: {{ addr.ip }}
+                prefix-length: {{ addr['prefix-length'] }}
+{% endfor %}
+{% endif %}
+            dhcp: {{ interface.ipv4.dhcp | lower }}
+{% endif %}
+{% if interface.ipv6 is defined %}
+          ipv6:
+            enabled: {{ interface.ipv6.enabled | lower }}
+{% if interface.ipv6.address is defined %}
+            address:
+{% for addr in interface.ipv6.address %}
+              - ip: {{ addr.ip }}
+                prefix-length: {{ addr['prefix-length'] }}
+{% endfor %}
+{% endif %}
+            dhcp: {{ interface.ipv6.dhcp | lower }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if host.networkConfig['dns-resolver'] is defined %}
+      dns-resolver:
+        config:
+          server:
+{% for server in host.networkConfig['dns-resolver'].config.server %}
+            - {{ server }}
+{% endfor %}
+{% endif %}
+{% if host.networkConfig.routes is defined %}
+      routes:
+        config:
+{% for route in host.networkConfig.routes.config %}
+          - destination: {{ route.destination }}
+            next-hop-address: {{ route['next-hop-address'] }}
+            next-hop-interface: {{ route['next-hop-interface'] }}
+{% if route.metric is defined %}
+            metric: {{ route.metric }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}

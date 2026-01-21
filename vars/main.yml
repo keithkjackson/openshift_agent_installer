@@ -1,0 +1,42 @@
+---
+# OpenShift Agent-Based Installer Role - Internal Variables
+
+# These variables are used internally by the role and should not be modified
+
+# Full path to generated ISO
+_iso_full_path: "{{ iso_output_dir }}/{{ iso_name }}"
+
+# Install config path
+_install_config_path: "{{ work_dir }}/install-config.yaml"
+
+# Agent config path
+_agent_config_path: "{{ work_dir }}/agent-config.yaml"
+
+# Redfish API endpoints
+_redfish_base_uri: "/redfish/v1"
+_redfish_systems_uri: "{{ _redfish_base_uri }}/Systems"
+_redfish_managers_uri: "{{ _redfish_base_uri }}/Managers"
+
+# Virtual media paths (Dell iDRAC specific)
+_virtual_media_uri: "{{ _redfish_managers_uri }}/iDRAC.Embedded.1/VirtualMedia"
+_cd_virtual_media_uri: "{{ _virtual_media_uri }}/CD"
+
+# Temporary file for install config backup
+_install_config_backup: "{{ work_dir }}/install-config.yaml.backup"
+
+# Required packages
+_required_packages:
+  - python3
+  - python3-pip
+
+# Required Python modules
+_required_python_modules:
+  - requests
+  - pyyaml
+
+# ISO generation command
+_iso_generation_cmd: "{{ ocp_installer_path }} agent create image --dir {{ work_dir }}"
+
+# Validation flags
+_validation_failed: false
+_validation_errors: []

@@ -1,0 +1,156 @@
+---
+# Baremetal deployment with managed provisioning network
+ocp_version: "4.14.3"
+cluster_name: "ocp-prod"
+base_domain: "example.com"
+
+# Platform configuration
+platform_type: "baremetal"
+provisioning_network: "Managed"
+provisioning_network_interface: "eno2"
+provisioning_network_cidr: "172.22.0.0/24"
+
+# VIP addresses
+api_vip: "192.168.1.5"
+ingress_vip: "192.168.1.6"
+
+# Network configuration
+machine_network_cidr: "192.168.1.0/24"
+cluster_network_cidr: "10.128.0.0/14"
+cluster_network_host_prefix: 23
+service_network: "172.30.0.0/16"
+
+# Rendezvous IP (first master node)
+rendezvous_ip: "192.168.1.100"
+
+# Pull secret and SSH key
+pull_secret: "{{ lookup('file', 'pull-secret.json') }}"
+ssh_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+# ISO configuration
+iso_http_url: "http://192.168.1.50:8080/agent.x86_64.iso"
+
+# iDRAC configuration
+idrac_username: "root"
+idrac_password: "{{ vault_idrac_password }}"
+
+idrac_servers:
+  - name: "master-0"
+    idrac_ip: "192.168.1.10"
+    role: "master"
+  - name: "master-1"
+    idrac_ip: "192.168.1.11"
+    role: "master"
+  - name: "master-2"
+    idrac_ip: "192.168.1.12"
+    role: "master"
+
+# Agent host configurations with dual interfaces
+agent_hosts:
+  - hostname: "master-0"
+    role: "master"
+    rootDeviceHints:
+      deviceName: "/dev/sda"
+    interfaces:
+      - name: "eno1"
+        macAddress: "AA:BB:CC:DD:EE:01"
+      - name: "eno2"
+        macAddress: "AA:BB:CC:DD:EE:11"
+    networkConfig:
+      interfaces:
+        - name: "eno1"
+          type: "ethernet"
+          state: "up"
+          ipv4:
+            enabled: true
+            address:
+              - ip: "192.168.1.100"
+                prefix-length: 24
+            dhcp: false
+        - name: "eno2"
+          type: "ethernet"
+          state: "up"
+          ipv4:
+            enabled: true
+            dhcp: true
+      dns-resolver:
+        config:
+          server:
+            - "192.168.1.1"
+      routes:
+        config:
+          - destination: "0.0.0.0/0"
+            next-hop-address: "192.168.1.1"
+            next-hop-interface: "eno1"
+  
+  - hostname: "master-1"
+    role: "master"
+    rootDeviceHints:
+      deviceName: "/dev/sda"
+    interfaces:
+      - name: "eno1"
+        macAddress: "AA:BB:CC:DD:EE:02"
+      - name: "eno2"
+        macAddress: "AA:BB:CC:DD:EE:12"
+    networkConfig:
+      interfaces:
+        - name: "eno1"
+          type: "ethernet"
+          state: "up"
+          ipv4:
+            enabled: true
+            address:
+              - ip: "192.168.1.101"
+                prefix-length: 24
+            dhcp: false
+        - name: "eno2"
+          type: "ethernet"
+          state: "up"
+          ipv4:
+            enabled: true
+            dhcp: true
+      dns-resolver:
+        config:
+          server:
+            - "192.168.1.1"
+      routes:
+        config:
+          - destination: "0.0.0.0/0"
+            next-hop-address: "192.168.1.1"
+            next-hop-interface: "eno1"
+  
+  - hostname: "master-2"
+    role: "master"
+    rootDeviceHints:
+      deviceName: "/dev/sda"
+    interfaces:
+      - name: "eno1"
+        macAddress: "AA:BB:CC:DD:EE:03"
+      - name: "eno2"
+        macAddress: "AA:BB:CC:DD:EE:13"
+    networkConfig:
+      interfaces:
+        - name: "eno1"
+          type: "ethernet"
+          state: "up"
+          ipv4:
+            enabled: true
+            address:
+              - ip: "192.168.1.102"
+                prefix-length: 24
+            dhcp: false
+        - name: "eno2"
+          type: "ethernet"
+          state: "up"
+          ipv4:
+            enabled: true
+            dhcp: true
+      dns-resolver:
+        config:
+          server:
+            - "192.168.1.1"
+      routes:
+        config:
+          - destination: "0.0.0.0/0"
+            next-hop-address: "192.168.1.1"
+            next-hop-interface: "eno1"

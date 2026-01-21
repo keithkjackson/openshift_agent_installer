@@ -1,0 +1,189 @@
+---
+# ISO Generation Tasks
+
+- name: ISO Generation - Start
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "Starting ISO Generation"
+      - "Cluster: {{ cluster_name }}.{{ base_domain }}"
+      - "FIPS Mode: {{ fips_enabled }}"
+      - "=========================================="
+
+- name: Clean work directory if requested
+  ansible.builtin.file:
+    path: "{{ work_dir }}"
+    state: absent
+  when: clean_work_dir | bool
+
+- name: Create work directory
+  ansible.builtin.file:
+    path: "{{ work_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create ISO output directory
+  ansible.builtin.file:
+    path: "{{ iso_output_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Generate install-config.yaml from template
+  ansible.builtin.template:
+    src: install-config.yaml.j2
+    dest: "{{ _install_config_path }}"
+    mode: '0600'
+  no_log: true  # Contains sensitive data
+
+- name: Create backup of install-config.yaml
+  ansible.builtin.copy:
+    src: "{{ _install_config_path }}"
+    dest: "{{ _install_config_backup }}"
+    mode: '0600'
+    remote_src: true
+  no_log: true
+
+- name: Generate agent-config.yaml from template
+  ansible.builtin.template:
+    src: agent-config.yaml.j2
+    dest: "{{ _agent_config_path }}"
+    mode: '0600'
+
+- name: Display configuration summary
+  ansible.builtin.debug:
+    msg:
+      - "Configuration files generated:"
+      - "  - install-config.yaml: {{ _install_config_path }}"
+      - "  - agent-config.yaml: {{ _agent_config_path }}"
+      - "Rendezvous IP: {{ rendezvous_ip }}"
+      - "Number of agent hosts: {{ agent_hosts | length }}"
+
+- name: Validate configuration files exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: _config_files
+  loop:
+    - "{{ _install_config_path }}"
+    - "{{ _agent_config_path }}"
+  failed_when: not _config_files.results | map(attribute='stat.exists') | list | min
+
+- name: Generate agent ISO
+  ansible.builtin.command:
+    cmd: "{{ _iso_generation_cmd }}"
+    chdir: "{{ work_dir }}"
+  register: _iso_generation
+  changed_when: true
+  async: 1800  # 30 minutes timeout
+  poll: 10
+
+- name: Display ISO generation output
+  ansible.builtin.debug:
+    var: _iso_generation.stdout_lines
+  when: _iso_generation.stdout_lines is defined
+
+- name: Check if ISO was generated
+  ansible.builtin.stat:
+    path: "{{ work_dir }}/{{ iso_name }}"
+  register: _generated_iso
+
+- name: Fail if ISO was not generated
+  ansible.builtin.fail:
+    msg: "ISO generation failed. ISO file not found at {{ work_dir }}/{{ iso_name }}"
+  when: not _generated_iso.stat.exists
+
+- name: Copy ISO to output directory
+  ansible.builtin.copy:
+    src: "{{ work_dir }}/{{ iso_name }}"
+    dest: "{{ _iso_full_path }}"
+    mode: '0644'
+    remote_src: true
+
+- name: Get ISO file information
+  ansible.builtin.stat:
+    path: "{{ _iso_full_path }}"
+  register: _iso_info
+
+- name: Display ISO information
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "ISO Generation Complete"
+      - "=========================================="
+      - "ISO Location: {{ _iso_full_path }}"
+      - "ISO Size: {{ (_iso_info.stat.size / 1024 / 1024) | round(2) }} MB"
+      - "ISO Checksum (SHA256): Computing..."
+      - "=========================================="
+
+- name: Calculate ISO checksum
+  ansible.builtin.stat:
+    path: "{{ _iso_full_path }}"
+    checksum_algorithm: sha256
+    get_checksum: true
+  register: _iso_checksum
+
+- name: Display ISO checksum
+  ansible.builtin.debug:
+    msg: "ISO SHA256: {{ _iso_checksum.stat.checksum }}"
+
+- name: Save ISO information to file
+  ansible.builtin.copy:
+    content: |
+      OpenShift Agent-Based Installation ISO
+      =====================================
+      Generated: {{ ansible_date_time.iso8601 }}
+      Cluster: {{ cluster_name }}.{{ base_domain }}
+      OpenShift Version: {{ ocp_version }}
+      FIPS Mode: {{ fips_enabled }}
+      
+      ISO Details:
+      -----------
+      Location: {{ _iso_full_path }}
+      Size: {{ (_iso_info.stat.size / 1024 / 1024) | round(2) }} MB
+      SHA256: {{ _iso_checksum.stat.checksum }}
+      
+      HTTP URL: {{ iso_http_url if iso_http_url else 'Not configured' }}
+      
+      Agent Hosts Configured:
+      ----------------------
+      {% for host in agent_hosts %}
+      - {{ host.hostname }} ({{ host.role }})
+      {% endfor %}
+      
+      Next Steps:
+      ----------
+      1. Ensure ISO is accessible via HTTP at: {{ iso_http_url }}
+      2. Mount ISO to target servers via iDRAC
+      3. Boot servers from mounted ISO
+      4. Monitor installation progress
+    dest: "{{ iso_output_dir }}/iso-info.txt"
+    mode: '0644'
+
+- name: Restore install-config.yaml from backup
+  ansible.builtin.copy:
+    src: "{{ _install_config_backup }}"
+    dest: "{{ _install_config_path }}"
+    mode: '0600'
+    remote_src: true
+  when: preserve_work_dir | bool
+  no_log: true
+
+- name: Start HTTP server for ISO hosting
+  ansible.builtin.shell: |
+    nohup python3 -m http.server {{ http_server_port }} --directory {{ http_server_dir }} \
+    > {{ http_server_dir }}/http-server.log 2>&1 &
+    echo $! > {{ http_server_dir }}/http-server.pid
+  args:
+    creates: "{{ http_server_dir }}/http-server.pid"
+  when: start_http_server | bool
+
+- name: Display HTTP server information
+  ansible.builtin.debug:
+    msg:
+      - "HTTP server started on port {{ http_server_port }}"
+      - "ISO accessible at: http://{{ ansible_default_ipv4.address }}:{{ http_server_port }}/{{ iso_name }}"
+      - "PID file: {{ http_server_dir }}/http-server.pid"
+  when: start_http_server | bool
+
+- name: ISO generation complete
+  ansible.builtin.debug:
+    msg: "ISO generation completed successfully"

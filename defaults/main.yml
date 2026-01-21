@@ -1,0 +1,256 @@
+---
+# OpenShift Agent-Based Installer Role - Default Variables
+
+# =============================================================================
+# ISO Generation Configuration
+# =============================================================================
+
+# Enable or disable ISO generation phase
+iso_generation_enabled: true
+
+# OpenShift version to install
+ocp_version: "4.14.3"
+
+# Path to the openshift-install binary
+ocp_installer_path: "/usr/local/bin/openshift-install"
+
+# Working directory for the installer (will be created)
+work_dir: "/tmp/openshift-agent-install"
+
+# Output directory for generated ISO
+iso_output_dir: "/tmp/openshift-iso"
+
+# Name of the generated ISO file
+iso_name: "agent.x86_64.iso"
+
+# Enable FIPS mode
+fips_enabled: true
+
+# Clean work directory before generation
+clean_work_dir: true
+
+# =============================================================================
+# Cluster Configuration
+# =============================================================================
+
+# Cluster identification
+cluster_name: "ocp-cluster"
+base_domain: "example.com"
+
+# Control plane configuration
+control_plane_replicas: 3
+
+# Compute nodes (0 for compact cluster)
+compute_replicas: 0
+
+# =============================================================================
+# Platform Configuration
+# =============================================================================
+
+# Platform type (none, baremetal, vsphere, etc.)
+platform_type: "baremetal"
+
+# Provisioning network configuration (for baremetal platform)
+# Set to 'Disabled' for environments without a separate provisioning network
+# Set to 'Managed' for environments with a dedicated provisioning network
+# Set to 'Unmanaged' for environments where provisioning network exists but is managed externally
+provisioning_network: "Disabled"
+
+# Provisioning network interface (required when provisioning_network is Managed or Unmanaged)
+provisioning_network_interface: ""
+
+# Provisioning network CIDR (required when provisioning_network is Managed)
+provisioning_network_cidr: "172.22.0.0/24"
+
+# API VIP (required for baremetal platform)
+api_vip: ""
+
+# Ingress VIP (required for baremetal platform)
+ingress_vip: ""
+
+# API VIPs (for dual-stack configurations)
+api_vips: []
+# Example:
+# api_vips:
+#   - "192.168.1.5"
+#   - "fd00::5"
+
+# Ingress VIPs (for dual-stack configurations)
+ingress_vips: []
+# Example:
+# ingress_vips:
+#   - "192.168.1.6"
+#   - "fd00::6"
+
+# =============================================================================
+# Network Configuration
+# =============================================================================
+
+# Networking type (OVNKubernetes or OpenShiftSDN)
+networking_type: "OVNKubernetes"
+
+# Cluster network configuration
+cluster_network_cidr: "10.128.0.0/14"
+cluster_network_host_prefix: 23
+
+# Service network
+service_network: "172.30.0.0/16"
+
+# Machine network (physical network where nodes reside)
+machine_network_cidr: "192.168.1.0/24"
+
+# Machine networks (for dual-stack or multiple network configurations)
+machine_networks: []
+# Example:
+# machine_networks:
+#   - cidr: "192.168.1.0/24"
+#   - cidr: "fd00::/64"
+
+# Cluster networks (for dual-stack configurations)
+cluster_networks: []
+# Example:
+# cluster_networks:
+#   - cidr: "10.128.0.0/14"
+#     hostPrefix: 23
+#   - cidr: "fd01::/48"
+#     hostPrefix: 64
+
+# Service networks (for dual-stack configurations)
+service_networks: []
+# Example:
+# service_networks:
+#   - "172.30.0.0/16"
+#   - "fd02::/112"
+
+# =============================================================================
+# Disconnected Environment Configuration
+# =============================================================================
+
+# Image content sources for mirror registries
+image_content_sources: []
+# Example:
+# image_content_sources:
+#   - mirrors:
+#       - "registry.internal.local:5000/ocp4/openshift4"
+#     source: "quay.io/openshift-release-dev/ocp-release"
+#   - mirrors:
+#       - "registry.internal.local:5000/ocp4/openshift4"
+#     source: "quay.io/openshift-release-dev/ocp-v4.0-art-dev"
+
+# Additional trust bundle (CA certificates for mirror registry)
+additional_trust_bundle: ""
+
+# =============================================================================
+# Agent Configuration
+# =============================================================================
+
+# Rendezvous IP (IP of the bootstrap/first master node)
+rendezvous_ip: ""
+
+# Agent host configurations (required for agent-based installation)
+# Note: Using 'agent_hosts' instead of 'hosts' to avoid conflict with Ansible reserved keyword
+agent_hosts: []
+# Example:
+# agent_hosts:
+#   - hostname: "master-0"
+#     role: "master"
+#     rootDeviceHints:
+#       deviceName: "/dev/sda"
+#     interfaces:
+#       - name: "eno1"
+#         macAddress: "AA:BB:CC:DD:EE:01"
+#     networkConfig:
+#       interfaces:
+#         - name: "eno1"
+#           type: "ethernet"
+#           state: "up"
+#           ipv4:
+#             enabled: true
+#             address:
+#               - ip: "192.168.1.100"
+#                 prefix-length: 24
+#             dhcp: false
+#       dns-resolver:
+#         config:
+#           server:
+#             - "192.168.1.1"
+#       routes:
+#         config:
+#           - destination: "0.0.0.0/0"
+#             next-hop-address: "192.168.1.1"
+#             next-hop-interface: "eno1"
+
+# =============================================================================
+# ISO Mounting Configuration
+# =============================================================================
+
+# Enable or disable ISO mounting phase
+iso_mounting_enabled: true
+
+# HTTP URL where the ISO will be accessible to iDRAC
+# This must be accessible from the iDRAC network, not just the Ansible controller
+iso_http_url: ""
+
+# Default iDRAC credentials (can be overridden per server)
+idrac_username: "root"
+idrac_password: ""
+
+# SSL certificate validation
+idrac_validate_certs: false
+
+# Timeout for mount operations (seconds)
+mount_timeout: 300
+
+# Retry configuration
+mount_retries: 3
+mount_retry_delay: 10
+
+# Boot configuration
+boot_from_iso: true
+boot_once: false  # If true, boot from ISO only once
+
+# Power management
+power_cycle_servers: false
+power_state_after_mount: "On"  # On, ForceOff, ForceRestart, GracefulShutdown, GracefulRestart
+
+# =============================================================================
+# iDRAC Server Configuration
+# =============================================================================
+
+# List of servers with iDRAC interfaces
+idrac_servers: []
+# Example:
+# idrac_servers:
+#   - name: "master-0"
+#     idrac_ip: "192.168.1.10"
+#     idrac_username: "root"  # Optional, uses default if not specified
+#     idrac_password: "password"  # Optional, uses default if not specified
+#     role: "master"
+#   - name: "master-1"
+#     idrac_ip: "192.168.1.11"
+#     role: "master"
+#   - name: "master-2"
+#     idrac_ip: "192.168.1.12"
+#     role: "master"
+
+# =============================================================================
+# Required Secrets (should be provided via extra vars or vault)
+# =============================================================================
+
+# OpenShift pull secret (JSON format)
+pull_secret: ""
+
+# SSH public key for cluster access
+ssh_public_key: ""
+
+# =============================================================================
+# Advanced Configuration
+# =============================================================================
+
+# Preserve work directory after completion
+preserve_work_dir: false
+
+# HTTP server configuration (if hosting ISO locally)
+start_http_server: false
+http_server_port: 8080
+http_server_dir: "{{ iso_output_dir }}"

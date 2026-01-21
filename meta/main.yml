@@ -1,0 +1,39 @@
+---
+galaxy_info:
+  role_name: openshift_agent_installer
+  author: Your Name
+  description: Automates OpenShift agent-based installation ISO generation and mounting via iDRAC
+  company: Your Company
+  license: MIT
+  min_ansible_version: "2.9"
+  
+  platforms:
+    - name: EL
+      versions:
+        - 8
+        - 9
+    - name: Fedora
+      versions:
+        - 37
+        - 38
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+
+  galaxy_tags:
+    - openshift
+    - kubernetes
+    - redhat
+    - installation
+    - automation
+    - idrac
+    - redfish
+    - baremetal
+    - disconnected
+
+dependencies: []
+
+collections:
+  - community.general
+  - ansible.posix

@@ -1,0 +1,173 @@
+---
+# Dual-stack baremetal deployment
+ocp_version: "4.14.3"
+cluster_name: "ocp-dualstack"
+base_domain: "example.com"
+
+# Platform configuration
+platform_type: "baremetal"
+provisioning_network: "Disabled"
+
+# Dual-stack VIP addresses
+api_vips:
+  - "192.168.1.5"
+  - "fd00::5"
+ingress_vips:
+  - "192.168.1.6"
+  - "fd00::6"
+
+# Dual-stack network configuration
+machine_networks:
+  - cidr: "192.168.1.0/24"
+  - cidr: "fd00::/64"
+
+cluster_networks:
+  - cidr: "10.128.0.0/14"
+    hostPrefix: 23
+  - cidr: "fd01::/48"
+    hostPrefix: 64
+
+service_networks:
+  - "172.30.0.0/16"
+  - "fd02::/112"
+
+# Rendezvous IP (IPv4)
+rendezvous_ip: "192.168.1.100"
+
+# Pull secret and SSH key
+pull_secret: "{{ lookup('file', 'pull-secret.json') }}"
+ssh_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+# ISO configuration
+iso_http_url: "http://192.168.1.50:8080/agent.x86_64.iso"
+
+# iDRAC configuration
+idrac_username: "root"
+idrac_password: "{{ vault_idrac_password }}"
+
+idrac_servers:
+  - name: "master-0"
+    idrac_ip: "192.168.1.10"
+    role: "master"
+  - name: "master-1"
+    idrac_ip: "192.168.1.11"
+    role: "master"
+  - name: "master-2"
+    idrac_ip: "192.168.1.12"
+    role: "master"
+
+# Agent host configurations with dual-stack
+agent_hosts:
+  - hostname: "master-0"
+    role: "master"
+    rootDeviceHints:
+      deviceName: "/dev/sda"
+    interfaces:
+      - name: "eno1"
+        macAddress: "AA:BB:CC:DD:EE:01"
+    networkConfig:
+      interfaces:
+        - name: "eno1"
+          type: "ethernet"
+          state: "up"
+          ipv4:
+            enabled: true
+            address:
+              - ip: "192.168.1.100"
+                prefix-length: 24
+            dhcp: false
+          ipv6:
+            enabled: true
+            address:
+              - ip: "fd00::100"
+                prefix-length: 64
+            dhcp: false
+      dns-resolver:
+        config:
+          server:
+            - "192.168.1.1"
+            - "fd00::1"
+      routes:
+        config:
+          - destination: "0.0.0.0/0"
+            next-hop-address: "192.168.1.1"
+            next-hop-interface: "eno1"
+          - destination: "::/0"
+            next-hop-address: "fd00::1"
+            next-hop-interface: "eno1"
+  
+  - hostname: "master-1"
+    role: "master"
+    rootDeviceHints:
+      deviceName: "/dev/sda"
+    interfaces:
+      - name: "eno1"
+        macAddress: "AA:BB:CC:DD:EE:02"
+    networkConfig:
+      interfaces:
+        - name: "eno1"
+          type: "ethernet"
+          state: "up"
+          ipv4:
+            enabled: true
+            address:
+              - ip: "192.168.1.101"
+                prefix-length: 24
+            dhcp: false
+          ipv6:
+            enabled: true
+            address:
+              - ip: "fd00::101"
+                prefix-length: 64
+            dhcp: false
+      dns-resolver:
+        config:
+          server:
+            - "192.168.1.1"
+            - "fd00::1"
+      routes:
+        config:
+          - destination: "0.0.0.0/0"
+            next-hop-address: "192.168.1.1"
+            next-hop-interface: "eno1"
+          - destination: "::/0"
+            next-hop-address: "fd00::1"
+            next-hop-interface: "eno1"
+  
+  - hostname: "master-2"
+    role: "master"
+    rootDeviceHints:
+      deviceName: "/dev/sda"
+    interfaces:
+      - name: "eno1"
+        macAddress: "AA:BB:CC:DD:EE:03"
+    networkConfig:
+      interfaces:
+        - name: "eno1"
+          type: "ethernet"
+          state: "up"
+          ipv4:
+            enabled: true
+            address:
+              - ip: "192.168.1.102"
+                prefix-length: 24
+            dhcp: false
+          ipv6:
+            enabled: true
+            address:
+              - ip: "fd00::102"
+                prefix-length: 64
+            dhcp: false
+      dns-resolver:
+        config:
+          server:
+            - "192.168.1.1"
+            - "fd00::1"
+      routes:
+        config:
+          - destination: "0.0.0.0/0"
+            next-hop-address: "192.168.1.1"
+            next-hop-interface: "eno1"
+          - destination: "::/0"
+            next-hop-address: "fd00::1"
+            next-hop-interface: "eno1"
