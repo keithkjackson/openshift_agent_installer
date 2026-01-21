@@ -18,6 +18,7 @@ The role performs two primary functions:
 ```bash
 ansible-galaxy collection install community.general
 ansible-galaxy collection install ansible.posix
+```
 
 ### Platform and Provisioning Network Variables
 
@@ -60,6 +61,7 @@ platform_type: "baremetal"
 provisioning_network: "Disabled"
 api_vip: "192.168.1.5"
 ingress_vip: "192.168.1.6"
+```
 
 ### Agent Configuration Variables
 
@@ -102,3 +104,4 @@ agent_hosts:
           - destination: "0.0.0.0/0"
             next-hop-address: "192.168.1.1"
             next-hop-interface: "eno1"
+```
