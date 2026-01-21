@@ -1,16 +1,6 @@
 ---
 # Handlers for OpenShift Agent-Based Installer Role
 
-- name: Stop HTTP server
-  ansible.builtin.shell: |
-    if [ -f {{ http_server_dir }}/http-server.pid ]; then
-      kill $(cat {{ http_server_dir }}/http-server.pid)
-      rm -f {{ http_server_dir }}/http-server.pid
-    fi
-  args:
-    removes: "{{ http_server_dir }}/http-server.pid"
-  listen: cleanup_http_server
-
 - name: Clean work directory
   ansible.builtin.file:
     path: "{{ work_dir }}"

@@ -189,6 +189,7 @@ iso_mounting_enabled: true
 
 # HTTP URL where the ISO will be accessible to iDRAC
 # This must be accessible from the iDRAC network, not just the Ansible controller
+# The external HTTP server must be running and serving files from iso_output_dir
 iso_http_url: ""
 
 # Default iDRAC credentials (can be overridden per server)
@@ -250,7 +251,5 @@ ssh_public_key: ""
 # Preserve work directory after completion
 preserve_work_dir: false
 
-# HTTP server configuration (if hosting ISO locally)
-start_http_server: false
-http_server_port: 8080
-http_server_dir: "{{ iso_output_dir }}"
+# Clean ISO output directory during cleanup
+clean_iso_output_dir: false

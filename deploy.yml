@@ -1,0 +1,95 @@
+---
+- name: Deploy OpenShift Compact Cluster
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  
+  vars_files:
+    - vars/ocp-compact-cluster.yml
+    - vars/vault.yml
+  
+  pre_tasks:
+    - name: Verify external HTTP server is accessible
+      ansible.builtin.uri:
+        url: "{{ iso_http_url | regex_replace('/[^/]+$', '') }}"
+        method: GET
+        status_code: [200, 404]  # 404 is OK if ISO doesn't exist yet
+        timeout: 10
+      register: _http_server_check
+      failed_when: false
+
+    - name: Fail if HTTP server is not accessible
+      ansible.builtin.fail:
+        msg: |
+          External HTTP server is not accessible!
+          
+          URL: {{ iso_http_url | regex_replace('/[^/]+$', '') }}
+          Status: {{ _http_server_check.status | default('Connection failed') }}
+          
+          Please ensure:
+          1. HTTP server is running
+          2. HTTP server is accessible from this host
+          3. Firewall allows traffic on port {{ iso_http_url | urlsplit('port') | default('80') }}
+          4. iso_http_url is correctly configured
+          
+          Test with: curl -I {{ iso_http_url | regex_replace('/[^/]+$', '') }}
+      when: _http_server_check.status not in [200, 404]
+
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "OpenShift Compact Cluster Deployment"
+          - "=========================================="
+          - "Cluster: {{ cluster_name }}.{{ base_domain }}"
+          - "Version: {{ ocp_version }}"
+          - "Topology: {{ control_plane_replicas }} masters (compact)"
+          - "Platform: {{ platform_type }}"
+          - "Provisioning Network: {{ provisioning_network }}"
+          - "FIPS Mode: {{ fips_enabled }}"
+          - ""
+          - "External HTTP Server:"
+          - "  URL: {{ iso_http_url }}"
+          - "  Status: {{ 'Accessible' if _http_server_check.status in [200, 404] else 'Not Accessible' }}"
+          - "  Document Root: {{ iso_output_dir }}"
+          - "=========================================="
+    
+    - name: Confirm deployment
+      ansible.builtin.pause:
+        prompt: "Press Enter to continue with deployment, or Ctrl+C to abort"
+  
+  roles:
+    - role: openshift_agent_installer
+  
+  post_tasks:
+    - name: Display next steps
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Deployment Initiated Successfully"
+          - "=========================================="
+          - ""
+          - "ISO Location: {{ iso_output_dir }}/{{ iso_name }}"
+          - "ISO URL: {{ iso_http_url }}"
+          - ""
+          - "Next Steps:"
+          - ""
+          - "1. Verify ISO is accessible:"
+          - "   curl -I {{ iso_http_url }}"
+          - ""
+          - "2. Monitor Bootstrap Progress:"
+          - "   openshift-install agent wait-for bootstrap-complete \\"
+          - "     --dir={{ work_dir }} --log-level=info"
+          - ""
+          - "3. Monitor Installation Progress:"
+          - "   openshift-install agent wait-for install-complete \\"
+          - "     --dir={{ work_dir }} --log-level=info"
+          - ""
+          - "4. Access Cluster:"
+          - "   export KUBECONFIG={{ work_dir }}/auth/kubeconfig"
+          - "   oc get nodes"
+          - ""
+          - "5. Cleanup (when installation is complete):"
+          - "   ansible-playbook cleanup.yml --ask-vault-pass"
+          - ""
+          - "=========================================="

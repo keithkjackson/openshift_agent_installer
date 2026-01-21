@@ -1,0 +1,78 @@
+---
+# Cleanup Tasks for OpenShift Agent-Based Installer Role
+
+- name: Cleanup - Start
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "Starting Cleanup"
+      - "=========================================="
+
+- name: Unmount ISO from all servers
+  community.general.redfish_command:
+    category: Manager
+    command: VirtualMediaEject
+    baseuri: "{{ item.idrac_ip }}"
+    username: "{{ item.idrac_username | default(idrac_username) }}"
+    password: "{{ item.idrac_password | default(idrac_password) }}"
+    virtual_media:
+      image_url: ""
+    resource_id: "iDRAC.Embedded.1"
+    timeout: "{{ mount_timeout }}"
+  loop: "{{ idrac_servers }}"
+  when:
+    - iso_mounting_enabled | bool
+    - idrac_servers is defined
+    - idrac_servers | length > 0
+  failed_when: false
+  no_log: true
+  tags:
+    - unmount_iso
+
+- name: Display unmount status
+  ansible.builtin.debug:
+    msg: "Virtual media ejected from all servers"
+  when:
+    - iso_mounting_enabled | bool
+    - idrac_servers is defined
+    - idrac_servers | length > 0
+
+- name: Clean work directory
+  ansible.builtin.file:
+    path: "{{ work_dir }}"
+    state: absent
+  when: not preserve_work_dir | bool
+  tags:
+    - work_dir
+
+- name: Display work directory status
+  ansible.builtin.debug:
+    msg: "Work directory: {{ 'Removed' if not preserve_work_dir else 'Preserved at ' + work_dir }}"
+
+- name: Clean ISO output directory
+  ansible.builtin.file:
+    path: "{{ iso_output_dir }}"
+    state: absent
+  when:
+    - not preserve_work_dir | bool
+    - clean_iso_output_dir | default(false) | bool
+  tags:
+    - iso_output
+
+- name: Display ISO output directory status
+  ansible.builtin.debug:
+    msg: "ISO output directory: {{ 'Removed' if (not preserve_work_dir and clean_iso_output_dir | default(false)) else 'Preserved at ' + iso_output_dir }}"
+
+- name: Cleanup complete
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "Cleanup Complete"
+      - "=========================================="
+      - "Work directory: {{ 'Removed' if not preserve_work_dir else 'Preserved' }}"
+      - "ISO output: {{ 'Removed' if (not preserve_work_dir and clean_iso_output_dir | default(false)) else 'Preserved' }}"
+      - "Virtual media: {{ 'Ejected' if iso_mounting_enabled else 'Not mounted' }}"
+      - ""
+      - "Note: External HTTP server is not managed by this role."
+      - "If you need to stop the HTTP server, do so manually."
+      - "=========================================="

@@ -141,20 +141,25 @@
       Size: {{ (_iso_info.stat.size / 1024 / 1024) | round(2) }} MB
       SHA256: {{ _iso_checksum.stat.checksum }}
       
-      HTTP URL: {{ iso_http_url if iso_http_url else 'Not configured' }}
+      HTTP URL: {{ iso_http_url }}
       
       Agent Hosts Configured:
       ----------------------
       {% for host in agent_hosts %}
-      - {{ host.hostname }} ({{ host.role }})
+      - {{ host.hostname }} ({{ host.role }}) - {{ host.networkConfig.interfaces[0].ipv4.address[0].ip }}
       {% endfor %}
       
       Next Steps:
       ----------
-      1. Ensure ISO is accessible via HTTP at: {{ iso_http_url }}
+      1. Verify ISO is accessible via HTTP at: {{ iso_http_url }}
       2. Mount ISO to target servers via iDRAC
       3. Boot servers from mounted ISO
       4. Monitor installation progress
+      
+      External HTTP Server:
+      --------------------
+      The ISO must be served by an external HTTP server accessible from the iDRAC network.
+      Ensure the HTTP server is configured to serve files from: {{ iso_output_dir }}
     dest: "{{ iso_output_dir }}/iso-info.txt"
     mode: '0644'
 
@@ -167,23 +172,33 @@
   when: preserve_work_dir | bool
   no_log: true
 
-- name: Start HTTP server for ISO hosting
-  ansible.builtin.shell: |
-    nohup python3 -m http.server {{ http_server_port }} --directory {{ http_server_dir }} \
-    > {{ http_server_dir }}/http-server.log 2>&1 &
-    echo $! > {{ http_server_dir }}/http-server.pid
-  args:
-    creates: "{{ http_server_dir }}/http-server.pid"
-  when: start_http_server | bool
+- name: Verify ISO is accessible via HTTP
+  ansible.builtin.uri:
+    url: "{{ iso_http_url }}"
+    method: HEAD
+    status_code: 200
+    timeout: 10
+  register: _iso_http_check
+  retries: 3
+  delay: 2
+  until: _iso_http_check.status == 200
+  when: iso_mounting_enabled | bool
 
-- name: Display HTTP server information
+- name: Display HTTP accessibility status
   ansible.builtin.debug:
     msg:
-      - "HTTP server started on port {{ http_server_port }}"
-      - "ISO accessible at: http://{{ ansible_default_ipv4.address }}:{{ http_server_port }}/{{ iso_name }}"
-      - "PID file: {{ http_server_dir }}/http-server.pid"
-  when: start_http_server | bool
+      - "ISO HTTP Accessibility Check:"
+      - "  URL: {{ iso_http_url }}"
+      - "  Status: {{ 'Accessible' if _iso_http_check.status == 200 else 'Not Accessible' }}"
+      - "  {% if _iso_http_check.status != 200 %}WARNING: ISO may not be accessible from iDRAC network!{% endif %}"
+  when: iso_mounting_enabled | bool
 
 - name: ISO generation complete
   ansible.builtin.debug:
-    msg: "ISO generation completed successfully"
+    msg:
+      - "=========================================="
+      - "ISO Generation Complete"
+      - "=========================================="
+      - "ISO is ready for mounting to servers"
+      - "Ensure external HTTP server is serving: {{ _iso_full_path }}"
+      - "=========================================="
