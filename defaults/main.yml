@@ -23,6 +23,13 @@ iso_output_dir: "/tmp/openshift-iso"
 # Name of the generated ISO file
 iso_name: "agent.x86_64.iso"
 
+# Internal variables for file paths
+_install_config_path: "{{ iso_output_dir }}/install-config.yaml"
+_install_config_backup: "{{ iso_output_dir }}/install-config.yaml.backup"
+_agent_config_path: "{{ iso_output_dir }}/agent-config.yaml"
+_iso_full_path: "{{ iso_output_dir }}/{{ iso_name }}"
+_iso_generation_cmd: "{{ ocp_installer_path }} agent create image --dir={{ work_dir }}"
+
 # Enable FIPS mode
 fips_enabled: true
 

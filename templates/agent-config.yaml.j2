@@ -2,7 +2,7 @@ apiVersion: v1alpha1
 kind: AgentConfig
 metadata:
   name: {{ cluster_name }}
-rendezvousIP: {{ agent_hosts[0].interfaces[0].ip_address }}
+rendezvousIP: {{ rendezvous_ip }}
 {% if agent_hosts | length > 0 %}
 hosts:
 {% for host in agent_hosts %}

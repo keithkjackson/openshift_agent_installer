@@ -7,18 +7,3 @@
     state: absent
   when: not preserve_work_dir | bool
   listen: cleanup_work_dir
-
-- name: Unmount all virtual media
-  community.general.redfish_command:
-    category: Manager
-    command: VirtualMediaEject
-    baseuri: "{{ item.idrac_ip }}"
-    username: "{{ item.idrac_username | default(idrac_username) }}"
-    password: "{{ item.idrac_password | default(idrac_password) }}"
-    virtual_media:
-      image_url: ""
-    resource_id: "iDRAC.Embedded.1"
-  loop: "{{ idrac_servers }}"
-  failed_when: false
-  no_log: true
-  listen: unmount_all_media

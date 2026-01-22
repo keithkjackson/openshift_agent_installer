@@ -1,0 +1,168 @@
+---
+# Compact cluster configuration with bonded interfaces
+ocp_version: "4.14.3"
+cluster_name: "ocp-compact"
+base_domain: "example.com"
+
+# Platform configuration
+platform_type: "baremetal"
+provisioning_network: "Disabled"
+
+# VIP addresses for baremetal
+api_vips:
+  - "192.168.1.5"
+ingress_vips:
+  - "192.168.1.6"
+
+# Rendezvous IP
+rendezvous_ip: "192.168.1.10"
+
+# Pull secret and SSH key (test values)
+pull_secret: '{"auths":{"fake":{"auth":"aGVsbG8="}}}'
+ssh_public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7vW4KxX5pW9a8yX9cK1t2Z3e4mF5g6h7j8k9l0m1n2o3p4q5r6s7t8u9v0w1x2y3z4a5b6c7d8e9f0g1h2i3j4k5l6m7n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6 test@example.com"
+
+# ISO configuration
+iso_http_url: "http://192.168.1.50:8080/agent.x86_64.iso"
+
+# Agent host configurations with bonded interfaces
+agent_hosts:
+  - hostname: "master-0"
+    role: "master"
+    rootDeviceHints:
+      deviceName: "/dev/sda"
+    interfaces:
+      - name: "eno1"
+        macAddress: "AA:BB:CC:DD:EE:01"
+      - name: "eno2"
+        macAddress: "AA:BB:CC:DD:EE:02"
+    networkConfig:
+      interfaces:
+        - name: "eno1"
+          type: "ethernet"
+          state: "up"
+        - name: "eno2"
+          type: "ethernet"
+          state: "up"
+        - name: "bond0"
+          type: "bond"
+          state: "up"
+          mtu: 9000
+          ipv4:
+            enabled: true
+            address:
+              - ip: "192.168.1.10"
+                prefix-length: 24
+            dhcp: false
+          linkAggregation:
+            mode: "802.3ad"
+            options:
+              miimon: "100"
+              lacp_rate: "fast"
+              xmit_hash_policy: "layer3+4"
+            port:
+              - "eno1"
+              - "eno2"
+      dns-resolver:
+        config:
+          server:
+            - "192.168.1.1"
+            - "8.8.8.8"
+      routes:
+        config:
+          - destination: "0.0.0.0/0"
+            next-hop-address: "192.168.1.1"
+            next-hop-interface: "bond0"
+
+  - hostname: "master-1"
+    role: "master"
+    rootDeviceHints:
+      deviceName: "/dev/sda"
+    interfaces:
+      - name: "eno1"
+        macAddress: "AA:BB:CC:DD:EE:03"
+      - name: "eno2"
+        macAddress: "AA:BB:CC:DD:EE:04"
+    networkConfig:
+      interfaces:
+        - name: "eno1"
+          type: "ethernet"
+          state: "up"
+        - name: "eno2"
+          type: "ethernet"
+          state: "up"
+        - name: "bond0"
+          type: "bond"
+          state: "up"
+          mtu: 9000
+          ipv4:
+            enabled: true
+            address:
+              - ip: "192.168.1.11"
+                prefix-length: 24
+            dhcp: false
+          linkAggregation:
+            mode: "802.3ad"
+            options:
+              miimon: "100"
+              lacp_rate: "fast"
+              xmit_hash_policy: "layer3+4"
+            port:
+              - "eno1"
+              - "eno2"
+      dns-resolver:
+        config:
+          server:
+            - "192.168.1.1"
+            - "8.8.8.8"
+      routes:
+        config:
+          - destination: "0.0.0.0/0"
+            next-hop-address: "192.168.1.1"
+            next-hop-interface: "bond0"
+
+  - hostname: "master-2"
+    role: "master"
+    rootDeviceHints:
+      deviceName: "/dev/sda"
+    interfaces:
+      - name: "eno1"
+        macAddress: "AA:BB:CC:DD:EE:05"
+      - name: "eno2"
+        macAddress: "AA:BB:CC:DD:EE:06"
+    networkConfig:
+      interfaces:
+        - name: "eno1"
+          type: "ethernet"
+          state: "up"
+        - name: "eno2"
+          type: "ethernet"
+          state: "up"
+        - name: "bond0"
+          type: "bond"
+          state: "up"
+          mtu: 9000
+          ipv4:
+            enabled: true
+            address:
+              - ip: "192.168.1.12"
+                prefix-length: 24
+            dhcp: false
+          linkAggregation:
+            mode: "802.3ad"
+            options:
+              miimon: "100"
+              lacp_rate: "fast"
+              xmit_hash_policy: "layer3+4"
+            port:
+              - "eno1"
+              - "eno2"
+      dns-resolver:
+        config:
+          server:
+            - "192.168.1.1"
+            - "8.8.8.8"
+      routes:
+        config:
+          - destination: "0.0.0.0/0"
+            next-hop-address: "192.168.1.1"
+            next-hop-interface: "bond0"
