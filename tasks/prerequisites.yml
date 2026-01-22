@@ -248,6 +248,24 @@
   loop_control:
     label: "{{ item.0.hostname }}: {{ item.1.name }}"
 
+- name: Validate bonding configuration
+  ansible.builtin.assert:
+    that:
+      - item.1.bonding.mode is defined
+      - item.1.bonding.mode | length > 0
+      - item.1.bonding.interfaces is defined
+      - item.1.bonding.interfaces | length >= 2
+    fail_msg: "Bonding configuration requires mode and at least 2 interfaces for {{ item.1.name }} on host {{ item.0.hostname }}"
+  loop: "{{ agent_hosts | subelements('interfaces') }}"
+  loop_control:
+    label: "{{ item.0.hostname }} - {{ item.1.name }}"
+  when: item.1.bonding is defined
+
+- name: Create output directory
+  ansible.builtin.file:
+    path: "{{ iso_output_dir }}"
+    state: directory
+
 - name: Display agent hosts summary
   ansible.builtin.debug:
     msg:
