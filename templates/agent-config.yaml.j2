@@ -27,9 +27,15 @@ hosts:
         - name: {{ interface.name }}
           type: {{ interface.type }}
           state: {{ interface.state }}
+{% if interface.mtu is defined %}
+          mtu: {{ interface.mtu }}
+{% endif %}
 {% if interface.ipv4 is defined %}
           ipv4:
             enabled: {{ interface.ipv4.enabled | lower }}
+{% if interface.ipv4.dhcp is defined %}
+            dhcp: {{ interface.ipv4.dhcp | lower }}
+{% endif %}
 {% if interface.ipv4.address is defined %}
             address:
 {% for addr in interface.ipv4.address %}
@@ -37,11 +43,13 @@ hosts:
                 prefix-length: {{ addr['prefix-length'] }}
 {% endfor %}
 {% endif %}
-            dhcp: {{ interface.ipv4.dhcp | lower }}
 {% endif %}
 {% if interface.ipv6 is defined %}
           ipv6:
             enabled: {{ interface.ipv6.enabled | lower }}
+{% if interface.ipv6.dhcp is defined %}
+            dhcp: {{ interface.ipv6.dhcp | lower }}
+{% endif %}
 {% if interface.ipv6.address is defined %}
             address:
 {% for addr in interface.ipv6.address %}
@@ -49,7 +57,28 @@ hosts:
                 prefix-length: {{ addr['prefix-length'] }}
 {% endfor %}
 {% endif %}
-            dhcp: {{ interface.ipv6.dhcp | lower }}
+{% endif %}
+{% if interface.linkAggregation is defined %}
+          linkAggregation:
+            mode: {{ interface.linkAggregation.mode }}
+{% if interface.linkAggregation.options is defined %}
+            options:
+{% for key, value in interface.linkAggregation.options.items() %}
+              {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+{% if interface.linkAggregation.port is defined %}
+            port:
+{% for port in interface.linkAggregation.port %}
+              - {{ port }}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% if interface.vlan is defined %}
+          vlan:
+{% for key, value in interface.vlan.items() %}
+            {{ key }}: {{ value }}
+{% endfor %}
 {% endif %}
 {% endfor %}
 {% endif %}
@@ -70,6 +99,9 @@ hosts:
             next-hop-interface: {{ route['next-hop-interface'] }}
 {% if route.metric is defined %}
             metric: {{ route.metric }}
+{% endif %}
+{% if route.table is defined %}
+            table: {{ route.table }}
 {% endif %}
 {% endfor %}
 {% endif %}
