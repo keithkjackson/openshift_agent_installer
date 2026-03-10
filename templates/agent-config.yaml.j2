@@ -59,7 +59,7 @@ hosts:
 {% endif %}
 {% endif %}
 {% if interface.linkAggregation is defined %}
-          linkAggregation:
+          link-aggregation:
             mode: {{ interface.linkAggregation.mode }}
 {% if interface.linkAggregation.options is defined %}
             options:
