@@ -33,7 +33,7 @@
           4. iso_http_url is correctly configured
           
           Test with: curl -I {{ iso_http_url | regex_replace('/[^/]+$', '') }}
-      when: _http_server_check.status not in [200, 404]
+      when: _http_server_check.status not in [200, 403, 404]
 
     - name: Display deployment information
       ansible.builtin.debug:

@@ -1,6 +1,6 @@
 ---
 # Compact cluster configuration with bonded interfaces
-ocp_version: "4.14.3"
+ocp_version: "4.18.30"
 cluster_name: "ocp-compact"
 base_domain: "example.com"
 

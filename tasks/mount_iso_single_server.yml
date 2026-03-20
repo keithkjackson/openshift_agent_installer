@@ -17,7 +17,7 @@
     password: "{{ _current_idrac_pass }}"
     timeout: "{{ mount_timeout }}"
   register: _system_info
-  no_log: true
+  no_log: false
 
 - name: "{{ _current_server_name }} - Display system information"
   ansible.builtin.debug:
@@ -141,9 +141,9 @@
     timeout: "{{ mount_timeout }}"
   when:
     - not power_cycle_servers | bool
-    - power_state_after_mount != "On" or _system_info.redfish_facts.system.entries[0].PowerState != "On"
+    - power_state_after_mount != "Off" or _system_info.redfish_facts.system.entries[0].PowerState != "On"
   register: _power_state_result
-  no_log: true
+  no_log: false
 
 - name: "{{ _current_server_name }} - ISO mounting complete"
   ansible.builtin.debug:

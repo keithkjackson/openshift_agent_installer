@@ -3,11 +3,19 @@ kind: AgentConfig
 metadata:
   name: {{ cluster_name }}
 rendezvousIP: {{ rendezvous_ip }}
+{% if ntp_servers | length > 0 %}
+additionalNTPSources: 
+{% for ntp in ntp_servers %}
+  - {{ ntp }}
+{% endfor %}
+{% endif %}
 {% if agent_hosts | length > 0 %}
 hosts:
 {% for host in agent_hosts %}
   - hostname: {{ host.hostname }}
+{% if host.role is defined %}
     role: {{ host.role }}
+{% endif %}
 {% if host.rootDeviceHints is defined %}
     rootDeviceHints:
 {% for key, value in host.rootDeviceHints.items() %}
