@@ -107,7 +107,7 @@
 
 - name: Validate pull secret format
   ansible.builtin.set_fact:
-    _pull_secret_valid: "{{ pull_secret | from_json }}"
+    _pull_secret_valid: "{{ pull_secret | to_json }}"
   when: iso_generation_enabled | bool
   ignore_errors: true
   no_log: true
@@ -220,8 +220,8 @@
   ansible.builtin.assert:
     that:
       - item.hostname is defined
-      - item.role is defined
-      - item.role in ['master', 'worker']
+#      - item.role is defined
+#      - item.role in ['master', 'worker']
       - item.interfaces is defined
       - item.interfaces | length > 0
     fail_msg: "Invalid agent host configuration for {{ item.hostname | default('unknown') }}"
@@ -271,8 +271,8 @@
     msg:
       - "Agent Hosts Configuration:"
       - "  Total hosts: {{ agent_hosts | length }}"
-      - "  Master nodes: {{ agent_hosts | selectattr('role', 'equalto', 'master') | list | length }}"
-      - "  Worker nodes: {{ agent_hosts | selectattr('role', 'equalto', 'worker') | list | length }}"
+#      - "  Master nodes: {{ agent_hosts | selectattr('role', 'equalto', 'master') | list | length }}"
+#      - "  Worker nodes: {{ agent_hosts | selectattr('role', 'equalto', 'worker') | list | length }}"
   when:
     - iso_generation_enabled | bool
     - agent_hosts | length > 0

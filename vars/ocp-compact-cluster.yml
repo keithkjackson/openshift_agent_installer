@@ -1,168 +1,231 @@
 ---
-# Compact cluster configuration with bonded interfaces
-ocp_version: "4.14.3"
-cluster_name: "ocp-compact"
-base_domain: "example.com"
+# Disconnected baremetal deployment without provisioning network
+ocp_version: "4.18.30"
+cluster_name: "qt-dev-1"
+base_domain: "dcs6k.fbi"
+ntp_servers:
+  - 10.57.101.10
 
 # Platform configuration
 platform_type: "baremetal"
+#platform_type: "compact"
 provisioning_network: "Disabled"
 
-# VIP addresses for baremetal
-api_vips:
-  - "192.168.1.5"
-ingress_vips:
-  - "192.168.1.6"
+# VIP addresses
+api_vip: "10.57.101.251"
+ingress_vip: "10.57.101.250"
 
-# Rendezvous IP
-rendezvous_ip: "192.168.1.10"
+# Network configuration
+machine_network_cidr: "10.57.101.0/24"
+cluster_network_cidr: "10.208.0.0/14"
+cluster_network_host_prefix: 23
+service_network: "172.21.0.0/16"
 
-# Pull secret and SSH key (test values)
-pull_secret: '{"auths":{"fake":{"auth":"aGVsbG8="}}}'
-ssh_public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7vW4KxX5pW9a8yX9cK1t2Z3e4mF5g6h7j8k9l0m1n2o3p4q5r6s7t8u9v0w1x2y3z4a5b6c7d8e9f0g1h2i3j4k5l6m7n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6 test@example.com"
+# Rendezvous IP (first master node)
+rendezvous_ip: "10.57.101.20"
+
+# Pull secret and SSH key
+pull_secret: "{{ lookup('file', '~/pull-secret.json') }}"
+ssh_public_key: "{{ lookup('file', '~/.ssh/TICTU.pub') }}"
 
 # ISO configuration
-iso_http_url: "http://192.168.1.50:8080/agent.x86_64.iso"
+iso_http_url: "http://10.57.101.8/agent.x86_64.iso"
 
-# Agent host configurations with bonded interfaces
+# iDRAC configuration
+idrac_username: "root"
+idrac_password: "{{ vault_idrac_password }}"
+
+idrac_servers:
+  - name: "cp0"
+    idrac_ip: "10.45.4.4"
+    role: "master"
+  - name: "cp1"
+    idrac_ip: "10.45.4.5"
+    role: "master"
+  - name: "cp2"
+    idrac_ip: "10.45.4.6"
+    role: "master"
+
+# Agent host configurations (renamed from 'hosts' to 'agent_hosts')
 agent_hosts:
-  - hostname: "master-0"
-    role: "master"
+  - hostname: cp-0
     rootDeviceHints:
-      deviceName: "/dev/sda"
+      deviceName: "/dev/disk/by-path/pci-0000:02:00.0-scsi-0:0:0:0"
     interfaces:
-      - name: "eno1"
-        macAddress: "AA:BB:CC:DD:EE:01"
-      - name: "eno2"
-        macAddress: "AA:BB:CC:DD:EE:02"
+    - macAddress: 24:6E:96:7D:81:A6
+      name: eno3
+    - macAddress: 24:6E:96:7D:81:A7
+      name: eno4
     networkConfig:
-      interfaces:
-        - name: "eno1"
-          type: "ethernet"
-          state: "up"
-        - name: "eno2"
-          type: "ethernet"
-          state: "up"
-        - name: "bond0"
-          type: "bond"
-          state: "up"
-          mtu: 9000
-          ipv4:
-            enabled: true
-            address:
-              - ip: "192.168.1.10"
-                prefix-length: 24
-            dhcp: false
-          linkAggregation:
-            mode: "802.3ad"
-            options:
-              miimon: "100"
-              lacp_rate: "fast"
-              xmit_hash_policy: "layer3+4"
-            port:
-              - "eno1"
-              - "eno2"
       dns-resolver:
         config:
           server:
-            - "192.168.1.1"
-            - "8.8.8.8"
+          - 10.45.6.17
+      interfaces:
+      - name: bond0
+        type: bond
+        state: up
+        mac-address: 24:6E:96:7D:81:A6
+        ipv4:
+          enabled: true
+          address:
+            - ip: 10.57.101.20
+              prefix-length: 24
+          dhcp: false
+        linkAggregation:
+          mode: 802.3ad
+          options:
+            miimon: "150"
+          port:
+            - eno3
+            - eno4
       routes:
         config:
-          - destination: "0.0.0.0/0"
-            next-hop-address: "192.168.1.1"
-            next-hop-interface: "bond0"
-
-  - hostname: "master-1"
-    role: "master"
+          - destination: 0.0.0.0/0
+            next-hop-address: 10.57.101.1
+            next-hop-interface: bond0
+  - hostname: cp-1
     rootDeviceHints:
-      deviceName: "/dev/sda"
+      deviceName: "/dev/disk/by-path/pci-0000:02:00.0-scsi-0:0:0:0"
     interfaces:
-      - name: "eno1"
-        macAddress: "AA:BB:CC:DD:EE:03"
-      - name: "eno2"
-        macAddress: "AA:BB:CC:DD:EE:04"
+    - macAddress: 24:6E:96:79:69:8C
+      name: eno3
+    - macAddress:	24:6E:96:79:69:8D
+      name: eno4
     networkConfig:
-      interfaces:
-        - name: "eno1"
-          type: "ethernet"
-          state: "up"
-        - name: "eno2"
-          type: "ethernet"
-          state: "up"
-        - name: "bond0"
-          type: "bond"
-          state: "up"
-          mtu: 9000
-          ipv4:
-            enabled: true
-            address:
-              - ip: "192.168.1.11"
-                prefix-length: 24
-            dhcp: false
-          linkAggregation:
-            mode: "802.3ad"
-            options:
-              miimon: "100"
-              lacp_rate: "fast"
-              xmit_hash_policy: "layer3+4"
-            port:
-              - "eno1"
-              - "eno2"
       dns-resolver:
         config:
           server:
-            - "192.168.1.1"
-            - "8.8.8.8"
+            - 10.45.6.17
+      interfaces:
+      - name: bond0
+        type: bond
+        state: up
+        mac-address: 24:6E:96:79:69:8C
+        ipv4:
+          enabled: true
+          address:
+            - ip: 10.57.101.21
+              prefix-length: 24 
+          dhcp: false
+        linkAggregation:
+          mode: 802.3ad
+          options:
+            miimon: "150"
+          port:
+            - eno3
+            - eno4
       routes:
         config:
-          - destination: "0.0.0.0/0"
-            next-hop-address: "192.168.1.1"
-            next-hop-interface: "bond0"
-
-  - hostname: "master-2"
-    role: "master"
+          - destination: 0.0.0.0/0
+            next-hop-address: 10.57.101.1
+            next-hop-interface: bond0
+  - hostname: cp-2
     rootDeviceHints:
-      deviceName: "/dev/sda"
+      deviceName: "/dev/disk/by-path/pci-0000:02:00.0-scsi-0:0:0:0"
     interfaces:
-      - name: "eno1"
-        macAddress: "AA:BB:CC:DD:EE:05"
-      - name: "eno2"
-        macAddress: "AA:BB:CC:DD:EE:06"
+    - macAddress: 24:6E:96:7C:DF:9A
+      name: eno3
+    - macAddress: 24:6E:96:7C:DF:9B
+      name: eno4
     networkConfig:
-      interfaces:
-        - name: "eno1"
-          type: "ethernet"
-          state: "up"
-        - name: "eno2"
-          type: "ethernet"
-          state: "up"
-        - name: "bond0"
-          type: "bond"
-          state: "up"
-          mtu: 9000
-          ipv4:
-            enabled: true
-            address:
-              - ip: "192.168.1.12"
-                prefix-length: 24
-            dhcp: false
-          linkAggregation:
-            mode: "802.3ad"
-            options:
-              miimon: "100"
-              lacp_rate: "fast"
-              xmit_hash_policy: "layer3+4"
-            port:
-              - "eno1"
-              - "eno2"
       dns-resolver:
         config:
           server:
-            - "192.168.1.1"
-            - "8.8.8.8"
+            - 10.45.6.17
+      interfaces:
+      - name: bond0
+        type: bond
+        state: up
+        mac-address: 24:6E:96:7C:DF:9B
+        ipv4:
+          enabled: true
+          address:
+            - ip: 10.57.101.22
+              prefix-length: 24 
+          dhcp: false
+        linkAggregation:
+          mode: 802.3ad
+          options:
+            miimon: "150"
+          port:
+            - eno3
+            - eno4
       routes:
         config:
-          - destination: "0.0.0.0/0"
-            next-hop-address: "192.168.1.1"
-            next-hop-interface: "bond0"
+          - destination: 0.0.0.0/0
+            next-hop-address: 10.57.101.1
+            next-hop-interface: bond0
+# Mirror registry configuration
+image_content_sources:
+  - mirrors:
+    - quay.dcs6k.fbi:8443/openshift/release
+    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+  - mirrors:
+    - quay.dcs6k.fbi:8443/openshift/release-images
+    source: quay.io/openshift-release-dev/ocp-release
+  - mirrors:
+    - quay.dcs6k.fbi:8443/cluster-observability-operator
+    source: registry.redhat.io/cluster-observability-operator
+  - mirrors:
+    - quay.dcs6k.fbi:8443/ubi9
+    source: registry.redhat.io/ubi9
+  - mirrors:
+    - quay.dcs6k.fbi:8443/openshift-logging
+    source: registry.redhat.io/openshift-logging
+  - mirrors:
+    - quay.dcs6k.fbi:8443/openshift-gitops-1
+    source: registry.redhat.io/openshift-gitops-1
+  - mirrors:
+    - quay.dcs6k.fbi:8443/rhem
+    source: registry.redhat.io/rhem
+  - mirrors:
+    - quay.dcs6k.fbi:8443/rhel8
+    source: registry.redhat.io/rhel8
+  - mirrors:
+    - quay.dcs6k.fbi:8443/rhel9
+    source: registry.redhat.io/rhel9
+  - mirrors:
+    - quay.dcs6k.fbi:8443/odf4
+    source: registry.redhat.io/odf4
+  - mirrors:
+    - quay.dcs6k.fbi:8443/compliance
+    source: registry.redhat.io/compliance
+  - mirrors:
+    - quay.dcs6k.fbi:8443/openshift4
+    source: registry.redhat.io/openshift4
+  - mirrors:
+    - quay.dcs6k.fbi:8443/advanced-cluster-security
+    source: registry.redhat.io/advanced-cluster-security
+  - mirrors:
+    - quay.dcs6k.fbi:8443/rhacm2
+    source: registry.redhat.io/rhacm2
+  - mirrors:
+    - quay.dcs6k.fbi:8443/multicluster-engine
+    source: registry.redhat.io/multicluster-engine
+additional_trust_bundle: |
+  -----BEGIN CERTIFICATE-----
+  MIIERjCCAq6gAwIBAgIBATANBgkqhkiG9w0BAQsFADA0MRIwEAYDVQQKDAlEQ1M2
+  Sy5GQkkxHjAcBgNVBAMMFUNlcnRpZmljYXRlIEF1dGhvcml0eTAeFw0yNjAxMTMx
+  NTUzMDFaFw00NjAxMTMxNTUzMDFaMDQxEjAQBgNVBAoMCURDUzZLLkZCSTEeMBwG
+  A1UEAwwVQ2VydGlmaWNhdGUgQXV0aG9yaXR5MIIBojANBgkqhkiG9w0BAQEFAAOC
+  AY8AMIIBigKCAYEAzWng78q7Yij5Dhp0/pFcfsUXmNeMW+O6b88RjdRs2z5voZ0U
+  SzxrgaMPOiyG3pYQ5pXBSjKKApPKLsN318QzX6LTtimXyUkhkVhZG6KJpIRgWH/P
+  ujlkpJJ5JBl6+bX12IDrmhhBR5f3m3qJWlmmGSIxbpffESsNTIFD3BsN0j6VxT5h
+  Ljab1RY1jup0AXvb/Pxhw/DLLApsNLaEx2FO4P8T7owerZc6/AclnKEBaamu7Zbv
+  zay7McO/AFqyeLf+7pWeMkI9lGbyH5uIN5iQ2RYZUiyolhushhyRsUkgH69Ddj60
+  NDuQOonOfiUIVd+O32nEIS834YQxIzf3GIfiJzrxGH/LWDWnBiBIJX2K2+2Oq1Qo
+  z+J5hqwlCBeWZqMcI5Xnd1I/EltNh+iDD3QZPxWsF5hkTo9i3qcVnVhgfCpa4ajp
+  MovxNP5tq4q14zQGQh23drJkUvrH/2aBmNzDSCDaja2M8gc3RTb3Hv5RGwJa35wp
+  IdywuPzNrrZUHetNAgMBAAGjYzBhMB0GA1UdDgQWBBRSVT0CeMe4ppb5P5eil1V4
+  gJi1BTAfBgNVHSMEGDAWgBRSVT0CeMe4ppb5P5eil1V4gJi1BTAPBgNVHRMBAf8E
+  BTADAQH/MA4GA1UdDwEB/wQEAwIBxjANBgkqhkiG9w0BAQsFAAOCAYEAOon/3fCn
+  fPkGQ1q4IluhYsbUO4nMjajLD7wpsQayqq/M5cNGzxnd5TPPveIW9J/wxkScwDuu
+  RYTXUHc8/iYEFZChwfLceOESKnI8Nec0xGjU4NLtqMI8xdBkfx60Yk8NA1Pui0mg
+  3PQjrKZCgtt6b6ctSOR3o+EVOvt+JfviMNwnnjHBsmQ+mDnf6rye8vxMYU7y34Cs
+  C/ipUe/am1GpNS6wRkBRZLcOHdYSZ7H8lByzFujI/V5LLUrqNWWLOhV6GQTD1qHp
+  lV5QM5qSQ58k6JRwJowSuZyHm4rs8YBKGYB6OImqok+PlWFTohvPKQ4W4T8dRodh
+  ki2GUIT00vGzgCjToDkjFmLvG/qFiUOFl+gV3LfMFzFplDCliths8N3IEdQttdSS
+  ki7YRUUfCWuIjbLY9Ydzk3/wp2ksYFSdBsxcFhKuXVEbW0dscc9X9LsHqthseJ22
+  1n4bTfCH3529Jsu0l9WquKe9Ssiw798eLv3wvfMYcbKVgN6dPItpzFZT
+  -----END CERTIFICATE-----

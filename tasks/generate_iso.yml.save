@@ -165,8 +165,6 @@
       Ensure the HTTP server is configured to serve files from: {{ iso_output_dir }}
     dest: "{{ iso_output_dir }}/iso-info.txt"
     mode: '0644'
-    remote_src: true
-  become: true
 
 - name: Restore install-config.yaml from backup
   ansible.builtin.copy:

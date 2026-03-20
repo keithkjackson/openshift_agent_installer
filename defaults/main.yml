@@ -9,16 +9,16 @@
 iso_generation_enabled: true
 
 # OpenShift version to install
-ocp_version: "4.14.3"
+ocp_version: "4.18.30"
 
 # Path to the openshift-install binary
-ocp_installer_path: "/usr/local/bin/openshift-install"
+ocp_installer_path: "/usr/local/bin/openshift-install-fips"
 
 # Working directory for the installer (will be created)
-work_dir: "/tmp/openshift-agent-install"
+work_dir: "/home/devops/tmp/openshift-agent-install"
 
 # Output directory for generated ISO
-iso_output_dir: "/tmp/openshift-iso"
+iso_output_dir: "/var/www/html"
 
 # Name of the generated ISO file
 iso_name: "agent.x86_64.iso"
