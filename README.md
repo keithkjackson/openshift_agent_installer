@@ -266,6 +266,18 @@ ingress_vip: "192.168.1.6"
 | `image_content_sources`  | `[]`    | Mirror definitions for install-config |
 | `additional_trust_bundle`| `""`    | CA bundle for mirror (PEM)           |
 
+**oc-mirror v2 — `ImageSetConfiguration`** (optional): set `oc_mirror_imageset_config_enabled: true` to render `mirror.openshift.io/v2alpha1` YAML (no `storageConfig`; use `oc-mirror … --v2`). The platform channel defaults to `stable-<major>.<minor>` derived from `ocp_version` (e.g. `4.18.30` → `stable-4.18`), with `minVersion` / `maxVersion` pinned to `ocp_version`. Operators are defined in `oc_mirror_operator_catalogs` (see `defaults/main.yml`).
+
+| Variable                         | Default | Description |
+|----------------------------------|---------|-------------|
+| `oc_mirror_imageset_config_enabled` | `false` | Render ImageSetConfiguration |
+| `oc_mirror_imageset_config_path` | `{{ work_dir }}/ImageSetConfiguration.yaml` | Output file |
+| `oc_mirror_platform_channel`     | `""`    | Override channel name; if empty, derived from `ocp_version` |
+| `oc_mirror_platform_channels`    | `[]`    | Full custom `mirror.platform.channels` list (replaces auto block) |
+| `oc_mirror_platform_graph`       | `true`  | Set `mirror.platform.graph` |
+| `oc_mirror_platform_architectures` | `[amd64]` | Platform architectures (omit if empty) |
+| `oc_mirror_operator_catalogs`    | `[]`    | List of `{ catalog, packages: [...] }` for `mirror.operators` |
+
 ### ISO mounting (iDRAC)
 
 | Variable                | Default   | Description                                  |
@@ -365,6 +377,7 @@ Use tags to run only part of the role:
 | `prerequisites`  | Validation and prereq checks   |
 | `generate_iso`, `iso` | ISO generation only       |
 | `mount_iso`, `idrac` | ISO mounting only          |
+| `oc_mirror`, `imageset_config` | ImageSetConfiguration for oc-mirror v2 only |
 
 Examples:
 
@@ -372,6 +385,7 @@ Examples:
 ansible-playbook deploy.yml --tags prerequisites
 ansible-playbook deploy.yml --tags generate_iso
 ansible-playbook deploy.yml --tags mount_iso
+ansible-playbook deploy.yml --tags oc_mirror
 ```
 
 ---
