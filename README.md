@@ -81,24 +81,26 @@ openshift_agent_installer/
 ├── defaults/
 │   └── main.yml            # Role defaults (cluster, ISO, iDRAC, agent, etc.)
 ├── vars/
-│   └── main.yml            # Internal role variables
+│   ├── main.yml                  # Internal role variables
 │   ├── ocp-compact-cluster.yml   # Example: 3 masters, bonded NICs
 │   ├── ocp-disconnected.yml      # Example: disconnected + mirror
 │   ├── ocp-dual-stack.yml        # Example: dual-stack
 │   ├── ocp-with-provisioning.yml # Example: provisioning network
-│   └── ocp-with-workers.yml     # Example: masters + workers
+│   └── ocp-with-workers.yml      # Example: masters + workers
 ├── tasks/
 │   ├── main.yml                  # Entry: validation, includes, summary
 │   ├── prerequisites.yml         # Binary, Python, collections, iDRAC, URL checks
 │   ├── generate_iso.yml          # install-config/agent-config + create image
+│   ├── generate_oc_mirror_imageset_config.yml  # Renders oc-mirror ImageSetConfiguration (v2)
 │   ├── mount_iso.yml             # Loop over idrac_servers
 │   ├── mount_iso_single_server.yml # Per-server Redfish virtual media + boot
 │   └── cleanup.yml               # Eject media, remove work_dir/iso_output_dir
 ├── handlers/
 │   └── main.yml            # Handler: cleanup_work_dir
 ├── templates/
-│   ├── install-config.yaml.j2   # Renders install-config for openshift-install
-│   └── agent-config.yaml.j2     # Renders agent-config (hosts, rendezvousIP)
+│   ├── install-config.yaml.j2        # Renders install-config for openshift-install
+│   ├── agent-config.yaml.j2          # Renders agent-config (hosts, rendezvousIP)
+│   └── ImageSetConfiguration-v2.yaml.j2  # Renders oc-mirror v2 ImageSetConfiguration
 └── README.md / newreadme.md
 ```
 
