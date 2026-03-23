@@ -27,11 +27,17 @@ iso_name: "agent.x86_64.iso"
 _install_config_path: "{{ iso_output_dir }}/install-config.yaml"
 _install_config_backup: "{{ iso_output_dir }}/install-config.yaml.backup"
 _agent_config_path: "{{ iso_output_dir }}/agent-config.yaml"
+_agent_config_backup: "{{ iso_output_dir }}/agent-config.yaml.backup"
 _iso_full_path: "{{ iso_output_dir }}/{{ iso_name }}"
 _iso_generation_cmd: "{{ ocp_installer_path }} agent create image --dir={{ work_dir }}"
 
 # Enable FIPS mode
 fips_enabled: true
+
+# OS-level FIPS on the control host (localhost); see tasks/prerequisites.yml
+localhost_fips_check_enabled: true
+# When true, fail if fips_enabled (install-config) does not match OS FIPS when state is known (enabled/disabled)
+localhost_fips_mismatch_fatal: true
 
 # Clean work directory before generation
 clean_work_dir: true

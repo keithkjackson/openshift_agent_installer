@@ -49,6 +49,14 @@
     dest: "{{ _agent_config_path }}"
     mode: '0600'
 
+- name: Create backup of agent-config.yaml
+  ansible.builtin.copy:
+    src: "{{ _agent_config_path }}"
+    dest: "{{ _agent_config_backup }}"
+    mode: '0600'
+    remote_src: true
+  no_log: true
+
 - name: Display configuration summary
   ansible.builtin.debug:
     msg:

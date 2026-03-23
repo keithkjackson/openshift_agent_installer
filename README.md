@@ -41,7 +41,7 @@ You can run both phases together or enable only one (e.g. generate ISO only, or 
 - **Disconnected / mirror** — Supports `imageContentSources` and `additionalTrustBundle` for air-gapped or mirror registries.
 - **Flexible networking** — Single NIC, bonds, VLANs; NMState-style `networkConfig` in agent host definitions.
 - **iDRAC integration** — Virtual media insert/eject, one-time or persistent boot from CD, optional power cycle via Redfish.
-- **Validation** — Checks pull secret, SSH key, installer binary, Python, Ansible, collections, iDRAC connectivity, and ISO HTTP URL before running.
+- **Validation** — Checks pull secret, SSH key, installer binary, Python, Ansible, collections, iDRAC connectivity, ISO HTTP URL, and (on Linux) OS FIPS vs install-config `fips_enabled` before running.
 - **Example vars** — Sample configs for compact cluster, disconnected, workers, provisioning network, and dual-stack.
 
 ---
@@ -202,7 +202,11 @@ Important knobs:
 | `iso_output_dir`       | `/tmp/openshift-iso` | Where to write the ISO                     |
 | `iso_name`             | `agent.x86_64.iso`   | Output ISO filename                        |
 | `fips_enabled`         | `true`               | Enable FIPS in install-config              |
+| `localhost_fips_check_enabled` | `true`        | When true, read OS FIPS from `/proc/sys/crypto/fips_enabled` on the control host (Linux) |
+| `localhost_fips_mismatch_fatal` | `true`       | When true, fail if OS FIPS (when known) does not match `fips_enabled`; unknown OS state skips the check (see debug) |
 | `clean_work_dir`      | `true`               | Remove work_dir before generating          |
+
+Facts set during prerequisites (when `localhost_fips_check_enabled` is true): `localhost_fips_state` is `enabled`, `disabled`, or `unknown`; `localhost_fips_active` is defined only when the state is known (`true` / `false`). Detection uses `/proc/sys/crypto/fips_enabled` on Linux only.
 | `rendezvous_ip`       | `""`                 | Rendezvous host IP (required for ISO)      |
 | `agent_hosts`         | `[]`                 | List of agent host definitions (required for ISO) |
 
